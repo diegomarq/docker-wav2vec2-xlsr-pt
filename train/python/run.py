@@ -7,27 +7,27 @@ from pathlib import Path
 
 """
 
-Execute all steps for training both an acoustic and languege model for Welsh
+Execute all steps for training both an acoustic and language model
 
 """
 
 if __name__ == "__main__":
 
     perform_training_wav2vec2 = True
-    perform_training_kenlm = True
-    perform_optimize_kenlm = True
+    perform_training_kenlm = False
+    perform_optimize_kenlm = False
 
-    organisation = "techiaith"
+    #organisation = "pt001"
     models_root_dir = "/models"
-    wav2vec2_model_name = "wav2vec2-xlsr-ft-cy"
-    language="cy"
+    wav2vec2_model_name = "wav2vec2-xlsr-s1-portuguese"
+    #language="cy"
     kenlm_model_name = "kenlm"
 
     wav2vec2_model_dir = os.path.join(Path.home(), wav2vec2_model_name)
     lm_model_dir = os.path.join(Path.home(), kenlm_model_name)
 
     print ("\nTraining acoustic model...")
-    if perform_training_wav2vec2: wav2vec2_model_dir = train_wav2vec2.train(wav2vec2_model_dir, language)
+    if perform_training_wav2vec2: wav2vec2_model_dir = train_wav2vec2.train(wav2vec2_model_dir)
 
     print ("\n\nTraining KenLM language model...")    
     if perform_training_kenlm: lm_model_dir = train_kenlm.train(lm_model_dir, "unshuffled_deduplicated_cy")

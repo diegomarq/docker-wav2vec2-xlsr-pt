@@ -3,3 +3,5 @@ models
 data
 python/data_url.py
 *.csv
+*.zip
+python/vocab-full.txt

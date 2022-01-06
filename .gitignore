@@ -5,3 +5,6 @@ train/homedir
 *.pid
 *.log
 *.lock
+*.csv
+*.zip
+train/python/vocab-full.txt

@@ -1,7 +1,7 @@
 FROM nvidia/cuda:11.4.0-cudnn8-devel-ubuntu20.04
 
 LABEL maintainer="techiaith"
-LABEL repository="wav2vec2-xlsr-ft-cy"
+LABEL repository="docker-wav2vec2-xlsr-pt"
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/London
@@ -37,6 +37,6 @@ ENV PATH="/usr/local/src/kenlm/build/bin:/usr/local/src/kenlm/scripts:${PATH}"
 RUN git clone --recursive https://github.com/parlance/ctcdecode.git /tmp/ctcdecode \
  && cd /tmp/ctcdecode && pip3 install .
 
-COPY python /xlsr-ft-train
+ADD python /xlsr-ft-train
 WORKDIR /xlsr-ft-train
 
