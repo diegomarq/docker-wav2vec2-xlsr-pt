@@ -21,7 +21,7 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 
 DESCRIPTION = """
 
-Train and optimize a KenLM language model from HuggingFace's provision of the Welsh corpus by the OSCAR project.
+Train and optimize a KenLM language model from HuggingFace's provision of the Portuguese corpus.
 
 """
 
@@ -66,7 +66,7 @@ def optimize_lm_objective(trial):
             blank_id=processor.tokenizer.pad_token_id,
             log_probs_input=True
         )
-        result = test_dataset.map(decode)
+        result = dataset_test.map(decode)
         result_wer = wer.compute(predictions=result["pred_strings_with_lm"], references=result["sentence"])
         trial.report(result_wer, step=0)
 
@@ -79,28 +79,31 @@ def optimize_lm_objective(trial):
 
 
 
-def train(lm_dir, oscar_dataset_name):
+def train(lm_dir, dataset_name):
 
     Path(lm_dir).mkdir(parents=True, exist_ok=True)    
     corpus_file_path = os.path.join(lm_dir, "corpus.txt")
 
-    print ("\nLoading OSCAR {} dataset...".format(oscar_dataset_name))
-    oscar_corpus = load_dataset("oscar", oscar_dataset_name)
+    #corpus_name="pt_sample_dataset"
 
-    print ("\nExporting OSCAR to text file {}...".format(corpus_file_path))
-    with open(corpus_file_path, 'w', encoding='utf-8') as corpus_file:
-        for line in oscar_corpus["train"]:
-            t = text_preprocess.cleanup(line["text"])
-            corpus_file.write(t)
+    #print ("\n Train LM from {} corpus...".format(corpus_name))
+    #print ("\nLoading {} dataset...".format(dataset_name))
+    #oscar_corpus = load_dataset("oscar", dataset_name)
+
+    #print ("\nExporting PT corpus to text file {}...".format(corpus_file_path))
+    #with open(corpus_file_path, 'w', encoding='utf-8') as corpus_file:
+    #    for line in oscar_corpus["train"]:
+    #        t = text_preprocess.cleanup(line["text"])
+    #        corpus_file.write(t)
 
     # generate KenLM ARPA file language model
-    lm_arpa_file_path=os.path.join(lm_dir, "lm.arpa")
-    lm_bin_file_path=os.path.join(lm_dir, "lm.binary")
+    lm_arpa_file_path=os.path.join(lm_dir, "lm_vaudimus_small.arpa.gz")
+    lm_bin_file_path=os.path.join(lm_dir, "lm_vaudimus_small.binary")
 
-    cmd = "lmplz -o {n} --text {corpus_file} --arpa {lm_file}".format(n=5, corpus_file=corpus_file_path, lm_file=lm_arpa_file_path)
-    print (cmd)
+    #cmd = "lmplz -o {n} --text {corpus_file} --arpa {lm_file}".format(n=5, corpus_file=corpus_file_path, lm_file=lm_arpa_file_path)
+    #print (cmd)
 
-    subprocess.run(shlex.split(cmd), stderr=sys.stderr, stdout=sys.stdout)
+    #subprocess.run(shlex.split(cmd), stderr=sys.stderr, stdout=sys.stdout)
 
     # generate binary version
     cmd = "build_binary trie {arpa_file} {bin_file}".format(arpa_file=lm_arpa_file_path, bin_file=lm_bin_file_path)
@@ -109,26 +112,25 @@ def train(lm_dir, oscar_dataset_name):
     subprocess.run(shlex.split(cmd), stderr=sys.stderr, stdout=sys.stdout)
 
     #
-    os.remove(corpus_file_path)
+    #os.remove(corpus_file_path)
     os.remove(lm_arpa_file_path)
 
     return lm_dir
 
 
 
-def optimize(lm_dir, wav2vec_model_path):
+def optimize(lm_dir, wav2vec_model_path, dataset_name):
     global processor
     global model
     global vocab
     global wer
     global resampler
-    global test_dataset
+    global dataset_test
     global lm_model_dir
 
     lm_model_dir=lm_dir
 
-    test_dataset = load_dataset("custom_common_voice.py", "cy", split="test")
-    #test_dataset = load_dataset("common_voice", "cy", split="test")
+    dataset_test = load_dataset(dataset_name, split="test")
 
     wer = load_metric("wer")
 
@@ -144,12 +146,12 @@ def optimize(lm_dir, wav2vec_model_path):
     vocab[space_ix]=' '
 
     print ("Preprocessing speech files")
-    test_dataset = test_dataset.map(speech_file_to_array_fn)
+    dataset_test = dataset_test.map(speech_file_to_array_fn)
 
 
     print ("Beginning alpha and beta hyperparameter optimization")
     study = optuna.create_study()
-    study.optimize(optimize_lm_objective, n_jobs=1, n_trials=100)
+    study.optimize(optimize_lm_objective, n_jobs=1, n_trials=10)
 
     #
     lm_best = {'alpha':study.best_params['lm_alpha'], 'beta':study.best_params['lm_beta']}
@@ -163,8 +165,8 @@ def optimize(lm_dir, wav2vec_model_path):
 
 
 def main(lm_root_dir, wav2vec2_model_path, **args):
-    lm_file_path=train_kenlm(lm_root_dir, "unshuffled_deduplicated_cy")
-    optimize_kenlm(lm_file_path, wav2vec2_model_path) 
+    lm_file_path=train_kenlm(lm_root_dir, "pt_sample_dataset.py")
+    optimize_kenlm(lm_file_path, wav2vec2_model_path, "pt_sample_dataset.py") 
 
 
 

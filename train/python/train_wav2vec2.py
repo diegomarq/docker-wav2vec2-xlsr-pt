@@ -7,6 +7,7 @@ import torchaudio
 import librosa
 import numpy as np
 import soundfile as sf
+import warnings
 
 import publish
 
@@ -119,8 +120,11 @@ class DataCollatorCTCWithPadding:
 
 
 def speech_file_to_array_fn(batch):
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
-    batch["speech"] = speech_array[0].numpy()
+    #speech_array, sampling_rate = torchaudio.load(batch["audio"])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
+    batch["speech"] = speech_array
     batch["sampling_rate"] = sampling_rate
     batch["target_text"] = batch["sentence"]
     return batch
@@ -134,11 +138,12 @@ def resample(batch):
 
 def prepare_dataset(batch):
     # check that all files have the correct sampling rate
-    assert (
-        len(set(batch["sampling_rate"])) == 1
-    ), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
+    #assert (
+    #    len(set(batch["sampling_rate"])) == 1
+    #), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
 
-    batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"][0]).input_values
+    batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"]).input_values[0]
+    batch["input_length"] = len(batch["input_values"])
                                         
     with processor.as_target_processor():
         batch["labels"] = processor(batch["target_text"]).input_ids
@@ -241,14 +246,15 @@ def train(output_dir, train=True):
     dataset_test = dataset_test.map(speech_file_to_array_fn, remove_columns=dataset_test.column_names)
     
     print ("\nDownsampling all speech files")
-    dataset_train = dataset_train.map(resample, num_proc=4)
-    dataset_test = dataset_test.map(resample, num_proc=4)
+    print ("\n ---- Not necessary")
+    #dataset_train = dataset_train.map(resample, num_proc=4)
+    #dataset_test = dataset_test.map(resample, num_proc=4)
 
     print ("\nPreparing the training dataset")
-    dataset_train = dataset_train.map(prepare_dataset, remove_columns=dataset_train.column_names, batch_size=8, num_proc=4, batched=True)
+    dataset_train = dataset_train.map(prepare_dataset, remove_columns=dataset_train.column_names, batch_size=8, num_proc=4)
 
     print ("\nPreparing test set")
-    dataset_test = dataset_test.map(prepare_dataset, remove_columns=dataset_test.column_names, batch_size=8, num_proc=4, batched=True)
+    dataset_test = dataset_test.map(prepare_dataset, remove_columns=dataset_test.column_names, batch_size=8, num_proc=4)
 
     print ("\nTESTING =====> Getting sample <=====")
     max_input_length_in_sec = 30.0
@@ -326,8 +332,13 @@ def train(output_dir, train=True):
     print ("\nTraining...")
     trainer.train()
 
-    # copy config and model binary file
-    publish.export_checkpoint(output_dir)
+    try:
+        # copy config and model binary file
+        publish.export_checkpoint(output_dir)
+        print ("\n ==> Saving model as publish")
+    except:
+        trainer.save_model(output_dir)
+        print ("\n ==> Saving model as trainer")
 
     print ("\n\nModel trained. See %s" % output_dir)
 
