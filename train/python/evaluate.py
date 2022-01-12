@@ -5,6 +5,9 @@ import json
 import numpy as np
 import yaml
 
+import warnings
+import librosa
+
 import models
 
 from argparse import ArgumentParser, RawTextHelpFormatter
@@ -33,9 +36,21 @@ KenLM language models support from https://github.com/parlance/ctcdecode has bee
 # Preprocessing the datasets.
 # We need to read the aduio files as arrays
 def speech_file_to_array_fn(batch):
-    batch["sentence"] = text_preprocess.cleanup(batch["sentence"]).strip() # + " "
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
-    batch["speech"] = resampler(speech_array).squeeze().numpy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
+    batch["speech"] = speech_array
+    batch["sampling_rate"] = sampling_rate
+    batch["target_text"] = batch["sentence"]
+    return batch
+
+def prepare_dataset(batch):
+    batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"]).input_values[0]
+    batch["input_length"] = len(batch["input_values"])
+                                        
+    with processor.as_target_processor():
+        batch["labels"] = processor(batch["target_text"]).input_ids
+
     return batch
 
 
@@ -71,7 +86,7 @@ def main(wav2vec2_model_path, revision, **args):
     processor, model, vocab, ctcdecoder, kenlm_ctcdecoder = models.create(wav2vec2_model_path, revision)
 
     #
-    test_dataset = load_dataset("custom_common_voice.py", "cy", split="test")
+    dataset_test = load_dataset("pt_sample_dataset.py", split="test")
 
     wer = load_metric("wer")
 
@@ -79,8 +94,13 @@ def main(wav2vec2_model_path, revision, **args):
 
     resampler = torchaudio.transforms.Resample(48_000, 16_000)
 
-    test_dataset = test_dataset.map(speech_file_to_array_fn)
-    result = test_dataset.map(evaluate, batch_size=8)
+    dataset_test = dataset_test.map(speech_file_to_array_fn)
+    dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
+
+    max_input_length_in_sec = 30.0
+    dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
+
+    result = dataset_test.map(evaluate, batch_size=8)
 
     print("WER: {:2f}".format(100 * wer.compute(predictions=result["pred_strings"], references=result["sentence"])))
     print("WER with CTC: {:2f}".format(100 * wer.compute(predictions=result["pred_strings_with_ctc"], references=result["sentence"])))
@@ -89,8 +109,8 @@ def main(wav2vec2_model_path, revision, **args):
 
 if __name__ == "__main__":
    
-    models_root_dir="/models/published"
-    wav2vec2_model_name = "wav2vec2-xlsr-ft-cy"
+    models_root_dir="/root/published"
+    wav2vec2_model_name = "wav2vec2-xlsr-s1-portuguese"
     kenlm_model_name= "kenlm"
 
     wav2vec_model_dir = os.path.join(models_root_dir, wav2vec2_model_name)

@@ -25,18 +25,22 @@ def create(model_path, revision):
         processor = Wav2Vec2Processor.from_pretrained(model_path)
         model = Wav2Vec2ForCTC.from_pretrained(model_path)
     else:
-        cache_dir = os.path.join('/', 'models', 'published', model_path)
+        cache_dir = os.path.join('/', 'root', 'published', model_path)
         processor = Wav2Vec2Processor.from_pretrained(model_path, cache_dir=cache_dir, revision=revision)
         model = Wav2Vec2ForCTC.from_pretrained(model_path, cache_dir=cache_dir, revision=revision)
     
     targz_file_path=os.path.join(cache_dir, "kenlm.tar.gz")
     if not Path(targz_file_path).is_file():
-        print ("Downloading kenlm language model version {}".format(revision))
-        file_url = os.path.join("https://huggingface.co", model_path, "resolve", revision, 'kenlm.tar.gz')
-        download(file_url, os.path.join(cache_dir, targz_file_path))
+        #print ("Downloading kenlm language model version {}".format(revision))
+        #file_url = os.path.join("https://huggingface.co", model_path, "resolve", revision, 'kenlm.tar.gz')
+        #download(file_url, os.path.join(cache_dir, targz_file_path))
+        print ("{} not found!".format(targz_file_path))
+        raise
 
     if not Path(os.path.join(cache_dir, "config_ctc.yaml")).is_file():
-         extract(targz_file_path)
+        #extract(targz_file_path)
+        print ("{} not found!".format(targz_file_path))
+        raise
 
     with open(os.path.join(cache_dir, "config_ctc.yaml"), 'r') as config_file:
         ctc_lm_params=yaml.load(config_file, Loader=yaml.FullLoader)
@@ -51,8 +55,8 @@ def create(model_path, revision):
         beta=0,
         cutoff_top_n=40,
         cutoff_prob=1.0,
-        beam_width=100,
-        num_processes=4,
+        beam_width=50,
+        num_processes=3,
         blank_id=processor.tokenizer.pad_token_id,
         log_probs_input=True
         )
@@ -64,7 +68,7 @@ def create(model_path, revision):
         beta=ctc_lm_params['beta'],
         cutoff_top_n=40,
         cutoff_prob=1.0,
-        beam_width=100,
+        beam_width=50,
         num_processes=4,
         blank_id=processor.tokenizer.pad_token_id,
         log_probs_input=True

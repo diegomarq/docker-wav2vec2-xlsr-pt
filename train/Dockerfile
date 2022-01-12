@@ -1,4 +1,5 @@
-FROM nvidia/cuda:11.4.0-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+#FROM nvidia/cuda:11.4.0-cudnn8-devel-ubuntu20.04
 
 LABEL maintainer="techiaith"
 LABEL repository="docker-wav2vec2-xlsr-pt"

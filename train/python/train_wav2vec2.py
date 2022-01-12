@@ -332,13 +332,13 @@ def train(output_dir, train=True):
     print ("\nTraining...")
     trainer.train()
 
-    try:
-        # copy config and model binary file
-        publish.export_checkpoint(output_dir)
-        print ("\n ==> Saving model as publish")
-    except:
-        trainer.save_model(output_dir)
-        print ("\n ==> Saving model as trainer")
+    #try:
+    #    # copy config and model binary file
+    #    print ("\n ==> Saving model as publish")
+    #    publish.export_checkpoint(output_dir)
+    #except:
+    print ("\n ==> Saving model as trainer")
+    trainer.save_model(output_dir)
 
     print ("\n\nModel trained. See %s" % output_dir)
 

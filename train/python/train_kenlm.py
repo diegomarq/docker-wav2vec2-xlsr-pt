@@ -11,6 +11,9 @@ import torchaudio
 import optuna
 import text_preprocess
 
+import librosa
+import warnings
+
 from pathlib import Path
 from ctcdecode import CTCBeamDecoder
 from datasets import load_dataset, load_metric, set_caching_enabled
@@ -30,9 +33,10 @@ set_caching_enabled(False)
 
 # Preprocessing the datasets.
 def speech_file_to_array_fn(batch):
-    batch["sentence"] = text_preprocess.cleanup(batch["sentence"]).strip() # + " "
-    speech_array, sampling_rate = torchaudio.load(batch["path"])
-    batch["speech"] = resampler(speech_array).squeeze().numpy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
+    batch["speech"] = speech_array   
     return batch
 
 
@@ -61,8 +65,8 @@ def optimize_lm_objective(trial):
             beta=beta,
             cutoff_top_n=40,
             cutoff_prob=1.0,
-            beam_width=100,
-            num_processes=4,
+            beam_width=50,
+            num_processes=3,
             blank_id=processor.tokenizer.pad_token_id,
             log_probs_input=True
         )
