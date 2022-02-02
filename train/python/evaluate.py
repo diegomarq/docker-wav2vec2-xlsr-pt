@@ -16,6 +16,9 @@ from datasets import load_dataset, load_metric
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 import text_preprocess
 
+from shutil import copyfile
+from pathlib import Path
+
 from ctcdecode import CTCBeamDecoder
 
 DESCRIPTION = """
@@ -41,20 +44,17 @@ def speech_file_to_array_fn(batch):
         speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
     batch["speech"] = speech_array
     batch["sampling_rate"] = sampling_rate
-    batch["target_text"] = batch["sentence"]
     return batch
 
 def prepare_dataset(batch):
     batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"]).input_values[0]
     batch["input_length"] = len(batch["input_values"])
-                                        
-    with processor.as_target_processor():
-        batch["labels"] = processor(batch["target_text"]).input_ids
-
     return batch
 
-
 def evaluate(batch):
+    file_name = os.path.basename(batch["audio"])
+    print(f"\n -- Evaluating {file_name}")
+
     inputs = processor(batch["speech"], sampling_rate=16_000, return_tensors="pt", padding=True)
     
     with torch.no_grad():
@@ -86,21 +86,34 @@ def main(wav2vec2_model_path, revision, **args):
     processor, model, vocab, ctcdecoder, kenlm_ctcdecoder = models.create(wav2vec2_model_path, revision)
 
     #
-    dataset_test = load_dataset("pt_sample_dataset.py", split="test")
+    dataset_test = load_dataset("pt_sample_dataset.py", split="manuscript")
 
     wer = load_metric("wer")
+
+    torch.cuda.empty_cache()
 
     model.to("cuda")
 
     resampler = torchaudio.transforms.Resample(48_000, 16_000)
 
+    print("Preprocessing speech files")
     dataset_test = dataset_test.map(speech_file_to_array_fn)
     dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
+    dataset_test = dataset_test.remove_columns(["id", "time", "input_values", "sampling_rate"])
 
-    max_input_length_in_sec = 30.0
+    max_input_length_in_sec = 170.0
     dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
 
+    dataset_test = dataset_test.remove_columns(["input_length"])
+
+    print(f"\n NUM TEST MANUSCRIPT ROWS >> {str(dataset_test.num_rows)}")
+
+    print("Begining evaluate")
+
     result = dataset_test.map(evaluate, batch_size=8)
+    #result = result.filter(lambda x: x["pred_strings"] != "" and x["sentence"] != "")
+
+    #print(f"\n RESULTING ROWS >> {str(result.num_rows)}")
 
     print("WER: {:2f}".format(100 * wer.compute(predictions=result["pred_strings"], references=result["sentence"])))
     print("WER with CTC: {:2f}".format(100 * wer.compute(predictions=result["pred_strings_with_ctc"], references=result["sentence"])))
@@ -109,11 +122,17 @@ def main(wav2vec2_model_path, revision, **args):
 
 if __name__ == "__main__":
    
-    models_root_dir="/root/published"
+    models_root_dir="/models/published"
     wav2vec2_model_name = "wav2vec2-xlsr-s1-portuguese"
     kenlm_model_name= "kenlm"
 
     wav2vec_model_dir = os.path.join(models_root_dir, wav2vec2_model_name)
+
+    src_config_ctc = os.path.join("/models/" + kenlm_model_name, "config_ctc.yaml")
+    dst_config_ctc = os.path.join(wav2vec_model_dir, "config_ctc.yaml")
+
+    if Path(src_config_ctc).is_file() and not Path(dst_config_ctc).is_file():
+        copyfile(src_config_ctc, dst_config_ctc)
 
     parser = ArgumentParser(description=DESCRIPTION, formatter_class=RawTextHelpFormatter)
     

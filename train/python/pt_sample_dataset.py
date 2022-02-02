@@ -100,13 +100,13 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
         #urls = _URLs[self.config.name]
         abs_path_to_data = '/data'
         print ("\n Loading data from {}".format(abs_path_to_data))
-        file_url = os.path.join(abs_path_to_data, 'midia_base_sample.zip')
+        file_url = os.path.join(abs_path_to_data, 'midia_base.zip')
 
-        abs_path_to_clips = os.path.join(abs_path_to_data, "midia_base")
+        abs_path_to_clips = os.path.join(abs_path_to_data, "wav2vec-midia-training/midia_base")
         print(abs_path_to_clips)
 
-        if not os.path.isdir(abs_path_to_clips):
-            data_dir = self.download_and_extract(file_url, abs_path_to_data)
+        #if not os.path.isdir(abs_path_to_clips):
+        #    data_dir = self.download_and_extract(file_url, abs_path_to_data)
 
         return [
             datasets.SplitGenerator(
@@ -124,9 +124,9 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
                 },
             ),
             datasets.SplitGenerator(
-                name=datasets.Split.VALIDATION,
+                name="manuscript",
                 gen_kwargs={
-                    "filepath": os.path.join(abs_path_to_data, "sample-cv-valid-dev.csv"),
+                    "filepath": os.path.join(abs_path_to_data, "cv-valid-test-audiotext.csv"),
                     "path_to_clips": abs_path_to_clips,
                 },
             ),
@@ -142,10 +142,11 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
         print("READING - " + filepath)
 
         CHECK_VALUES_SAMPLE = []
-        MAX_NUMBER_LINES = 100
+        MAX_NUMBER_LINES = 3000
 
         if 'sample-cv-valid-train.csv' in filepath:
             num_lines = sum(1 for line in open(filepath))       
+            #CHECK_VALUES_SAMPLE = []
             CHECK_VALUES_SAMPLE = random.sample(range(1, num_lines), MAX_NUMBER_LINES)
         else:
             CHECK_VALUES_SAMPLE = []

@@ -38,9 +38,11 @@ def create(model_path, revision):
         raise
 
     if not Path(os.path.join(cache_dir, "config_ctc.yaml")).is_file():
-        #extract(targz_file_path)
+        extract(targz_file_path)
+
+    if not Path(os.path.join(cache_dir, "config_ctc.yaml")).is_file():
         print ("{} not found!".format(targz_file_path))
-        raise
+        #raise
 
     with open(os.path.join(cache_dir, "config_ctc.yaml"), 'r') as config_file:
         ctc_lm_params=yaml.load(config_file, Loader=yaml.FullLoader)

@@ -142,6 +142,7 @@ def prepare_dataset(batch):
     #    len(set(batch["sampling_rate"])) == 1
     #), f"Make sure all inputs have the same sampling rate of {processor.feature_extractor.sampling_rate}."
 
+    #batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"][0]).input_values
     batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"]).input_values[0]
     batch["input_length"] = len(batch["input_values"])
                                         
@@ -261,6 +262,9 @@ def train(output_dir, train=True):
     dataset_train = dataset_train.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
     dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
 
+    print(f"\n NUM TRAINING ROWS >>{str(dataset_train.num_rows)} ")
+    print(f"\n NUM TEST ROWS >>{str(dataset_test.num_rows)} ")
+
 
     print ("\nSetting up data collator")
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True) 
@@ -269,54 +273,59 @@ def train(output_dir, train=True):
 
     print ("\nLoading pre-trained jonatasgrosman/wav2vec2-large-xlsr-53-portuguese")
     # see https://huggingface.co/transformers/model_doc/wav2vec2.html?highlight=mask_time_prob#transformers.Wav2Vec2Config
+
+    torch.cuda.empty_cache()
+
     model = Wav2Vec2ForCTC.from_pretrained(
         "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese",
         activation_dropout=0.055,
         attention_dropout=0.055,
         hidden_dropout=0.047,
+        gradient_checkpointing=True,
         feat_proj_dropout=0.04,
         mask_time_prob=0.082,
         layerdrop=0.041,
-        gradient_checkpointing=True, 
         ctc_loss_reduction="mean", 
         pad_token_id=processor.tokenizer.pad_token_id,
         vocab_size=len(processor.tokenizer)
     )
 
     model.freeze_feature_extractor()
+   # model.gradient_checkpointing_enable()
 
     # see https://huggingface.co/transformers/main_classes/trainer.html?highlight=group_by_length#transformers.TrainingArguments
-    #training_args = TrainingArguments(
-    #    output_dir=output_dir,
-    #    group_by_length=True,
-    #    per_device_train_batch_size=48,
-    #    gradient_accumulation_steps=2,
-    #    evaluation_strategy="steps",
-    #    num_train_epochs=30,
-    #    save_steps=400,
-    #    eval_steps=400,
-    #    logging_steps=400,
-    #    learning_rate=3e-4,
-    #    warmup_steps=400,
-    #    save_total_limit=1,
-    #)
+    training_args = TrainingArguments(
+       output_dir=output_dir,
+       group_by_length=True,
+       per_device_train_batch_size=2,
+       gradient_accumulation_steps=2,
+       gradient_checkpointing=True,
+       evaluation_strategy="steps",
+       num_train_epochs=20,
+       save_steps=400,
+       eval_steps=400,
+       logging_steps=400,
+       learning_rate=3e-4,
+       warmup_steps=400, 
+       save_total_limit=1,
+    )
 
     # Modified
     # Diego 
-    training_args = TrainingArguments(
-        output_dir=output_dir,
-        group_by_length=True,
-        per_device_train_batch_size=2,
-        gradient_accumulation_steps=2,
-        evaluation_strategy="steps",
-        num_train_epochs=15,
-        save_steps=400,
-        eval_steps=400,
-        logging_steps=400,
-        learning_rate=3e-4,
-        warmup_steps=400,
-        save_total_limit=1,
-    )
+    # training_args = TrainingArguments(
+    #     output_dir=output_dir,
+    #     group_by_length=True,
+    #     per_device_train_batch_size=2,
+    #     gradient_accumulation_steps=2,
+    #     evaluation_strategy="steps",
+    #     num_train_epochs=15,
+    #     save_steps=400,
+    #     eval_steps=400,
+    #     logging_steps=400,
+    #     learning_rate=3e-4,
+    #     warmup_steps=400,
+    #     save_total_limit=1,
+    # )
 
     print ("\nConstructing trainer")
     trainer = Trainer(

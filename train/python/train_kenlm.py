@@ -37,6 +37,12 @@ def speech_file_to_array_fn(batch):
         warnings.simplefilter("ignore")
         speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
     batch["speech"] = speech_array   
+    batch["sampling_rate"] = sampling_rate
+    return batch
+
+def prepare_dataset(batch):
+    batch["input_values"] = processor(batch["speech"], sampling_rate=batch["sampling_rate"]).input_values[0]
+    batch["input_length"] = len(batch["input_values"])
     return batch
 
 
@@ -102,7 +108,7 @@ def train(lm_dir, dataset_name):
 
     # generate KenLM ARPA file language model
     lm_arpa_file_path=os.path.join(lm_dir, "lm_vaudimus_small.arpa.gz")
-    lm_bin_file_path=os.path.join(lm_dir, "lm_vaudimus_small.binary")
+    lm_bin_file_path=os.path.join(lm_dir, "lm.binary")
 
     #cmd = "lmplz -o {n} --text {corpus_file} --arpa {lm_file}".format(n=5, corpus_file=corpus_file_path, lm_file=lm_arpa_file_path)
     #print (cmd)
@@ -141,6 +147,8 @@ def optimize(lm_dir, wav2vec_model_path, dataset_name):
     processor = Wav2Vec2Processor.from_pretrained(wav2vec_model_path)
     model = Wav2Vec2ForCTC.from_pretrained(wav2vec_model_path)
 
+    torch.cuda.empty_cache()
+
     model.to("cuda")
 
     resampler = torchaudio.transforms.Resample(48_000, 16_000)
@@ -151,11 +159,17 @@ def optimize(lm_dir, wav2vec_model_path, dataset_name):
 
     print ("Preprocessing speech files")
     dataset_test = dataset_test.map(speech_file_to_array_fn)
+    dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
 
+    max_input_length_in_sec = 30.0
+    dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
+    dataset_test = dataset_test.remove_columns(["sampling_rate", "input_values", "input_length"])
+
+    print(f"\n NUM TEST ROWS >>{str(dataset_test.num_rows)} ")
 
     print ("Beginning alpha and beta hyperparameter optimization")
     study = optuna.create_study()
-    study.optimize(optimize_lm_objective, n_jobs=1, n_trials=10)
+    study.optimize(optimize_lm_objective, n_jobs=1, n_trials=30)
 
     #
     lm_best = {'alpha':study.best_params['lm_alpha'], 'beta':study.best_params['lm_beta']}

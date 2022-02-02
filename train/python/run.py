@@ -15,11 +15,11 @@ if __name__ == "__main__":
 
     perform_training_wav2vec2 = False
     perform_training_kenlm = False
-    perform_optimize_kenlm = False
+    perform_optimize_kenlm = True
     publish_models = True
 
     #organisation = "pt001"
-    models_root_dir = "/root"
+    models_root_dir = "/models"
     wav2vec2_model_name = "wav2vec2-xlsr-s1-portuguese"
     #language="cy"
     kenlm_model_name = "kenlm"
