@@ -181,7 +181,7 @@ def train(output_dir, train=True):
 
     print ("\nLoading %s datasets" % dataset_name)
     dataset_train = load_dataset(dataset_name, split=training_split)
-    dataset_test = load_dataset(dataset_name, split="test")
+    dataset_test = load_dataset(dataset_name, split="valid1")
 
 
     print ("\nRemoving unnecessary columns")
@@ -260,6 +260,7 @@ def train(output_dir, train=True):
     print ("\nTESTING =====> Getting sample <=====")
     max_input_length_in_sec = 30.0
     dataset_train = dataset_train.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
+    ax_input_length_in_sec = 170.0
     dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
 
     print(f"\n NUM TRAINING ROWS >>{str(dataset_train.num_rows)} ")

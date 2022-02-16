@@ -1,3 +1,4 @@
+import sys
 import os
 import torch
 import torchaudio
@@ -43,7 +44,8 @@ def speech_file_to_array_fn(batch):
         warnings.simplefilter("ignore")
         speech_array, sampling_rate = librosa.load(batch["audio"], sr=16_000)
     batch["speech"] = speech_array
-    batch["sampling_rate"] = sampling_rate
+    batch["time"] = float(batch["time"])
+    #batch["sampling_rate"] = sampling_rate
     return batch
 
 def prepare_dataset(batch):
@@ -86,7 +88,7 @@ def main(wav2vec2_model_path, revision, **args):
     processor, model, vocab, ctcdecoder, kenlm_ctcdecoder = models.create(wav2vec2_model_path, revision)
 
     #
-    dataset_test = load_dataset("pt_sample_dataset.py", split="manuscript")
+    dataset_test = load_dataset("pt_sample_dataset.py", split="azure_audiotext")
 
     wer = load_metric("wer")
 
@@ -98,13 +100,14 @@ def main(wav2vec2_model_path, revision, **args):
 
     print("Preprocessing speech files")
     dataset_test = dataset_test.map(speech_file_to_array_fn)
-    dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
-    dataset_test = dataset_test.remove_columns(["id", "time", "input_values", "sampling_rate"])
+    #dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
+    #dataset_test = dataset_test.remove_columns(["id", "time", "input_values", "sampling_rate"])
 
     max_input_length_in_sec = 170.0
-    dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
+    dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec, input_columns=["time"])
+    #dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
 
-    dataset_test = dataset_test.remove_columns(["input_length"])
+    #dataset_test = dataset_test.remove_columns(["input_length"])
 
     print(f"\n NUM TEST MANUSCRIPT ROWS >> {str(dataset_test.num_rows)}")
 
@@ -119,20 +122,22 @@ def main(wav2vec2_model_path, revision, **args):
     print("WER with CTC: {:2f}".format(100 * wer.compute(predictions=result["pred_strings_with_ctc"], references=result["sentence"])))
     print("WER with CTC+LM: {:2f}".format(100 * wer.compute(predictions=result["pred_strings_with_lm"], references=result["sentence"])))
 
+    sys.exit(0)
+
 
 if __name__ == "__main__":
    
     models_root_dir="/models/published"
     wav2vec2_model_name = "wav2vec2-xlsr-s1-portuguese"
-    kenlm_model_name= "kenlm"
+    #kenlm_model_name= "kenlm"
 
     wav2vec_model_dir = os.path.join(models_root_dir, wav2vec2_model_name)
 
-    src_config_ctc = os.path.join("/models/" + kenlm_model_name, "config_ctc.yaml")
-    dst_config_ctc = os.path.join(wav2vec_model_dir, "config_ctc.yaml")
+    #src_config_ctc = os.path.join("/models/" + kenlm_model_name, "config_ctc.yaml")
+    #dst_config_ctc = os.path.join(wav2vec_model_dir, "config_ctc.yaml")
 
-    if Path(src_config_ctc).is_file() and not Path(dst_config_ctc).is_file():
-        copyfile(src_config_ctc, dst_config_ctc)
+    #if Path(src_config_ctc).is_file() and not Path(dst_config_ctc).is_file():
+    #    copyfile(src_config_ctc, dst_config_ctc)
 
     parser = ArgumentParser(description=DESCRIPTION, formatter_class=RawTextHelpFormatter)
     

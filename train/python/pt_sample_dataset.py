@@ -112,21 +112,42 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(
                 name=datasets.Split.TRAIN,
                 gen_kwargs={
-                    "filepath": os.path.join(abs_path_to_data, "sample-cv-valid-train.csv"),
+                    "filepath": os.path.join(abs_path_to_data, "cv-valid-train-less30.csv"),
                     "path_to_clips": abs_path_to_clips,
                 },
             ),
             datasets.SplitGenerator(
                 name=datasets.Split.TEST,
                 gen_kwargs={
-                    "filepath": os.path.join(abs_path_to_data, "sample-cv-valid-test.csv"),
+                    "filepath": os.path.join(abs_path_to_data, "cv-valid-test-azure-less170.csv"),
                     "path_to_clips": abs_path_to_clips,
                 },
             ),
             datasets.SplitGenerator(
-                name="manuscript",
+                name="audiotext",
                 gen_kwargs={
                     "filepath": os.path.join(abs_path_to_data, "cv-valid-test-audiotext.csv"),
+                    "path_to_clips": abs_path_to_clips,
+                },
+            ),
+            datasets.SplitGenerator(
+                name="valid1",
+                gen_kwargs={
+                    "filepath": os.path.join(abs_path_to_data, "cv-valid-valid1-azure-less170.csv"),
+                    "path_to_clips": abs_path_to_clips,
+                },
+            ),
+            datasets.SplitGenerator(
+                name="valid2",
+                gen_kwargs={
+                    "filepath": os.path.join(abs_path_to_data, "cv-valid-valid2-azure-less170.csv"),
+                    "path_to_clips": abs_path_to_clips,
+                },
+            ),
+            datasets.SplitGenerator(
+                name="azure_audiotext",
+                gen_kwargs={
+                    "filepath": os.path.join(abs_path_to_data, "azure_audiotext.csv"),
                     "path_to_clips": abs_path_to_clips,
                 },
             ),
@@ -142,14 +163,14 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
         print("READING - " + filepath)
 
         CHECK_VALUES_SAMPLE = []
-        MAX_NUMBER_LINES = 3000
+#        MAX_NUMBER_LINES = 3000
 
-        if 'sample-cv-valid-train.csv' in filepath:
-            num_lines = sum(1 for line in open(filepath))       
-            #CHECK_VALUES_SAMPLE = []
-            CHECK_VALUES_SAMPLE = random.sample(range(1, num_lines), MAX_NUMBER_LINES)
-        else:
-            CHECK_VALUES_SAMPLE = []
+#        if 'sample-cv-valid-train.csv' in filepath:
+#            num_lines = sum(1 for line in open(filepath))       
+#            #CHECK_VALUES_SAMPLE = []
+#            CHECK_VALUES_SAMPLE = random.sample(range(1, num_lines), MAX_NUMBER_LINES)
+#        else:
+#            CHECK_VALUES_SAMPLE = []
 
         with open(filepath, encoding="utf-8") as f:
             lines = f.readlines()

@@ -140,7 +140,7 @@ def optimize(lm_dir, wav2vec_model_path, dataset_name):
 
     lm_model_dir=lm_dir
 
-    dataset_test = load_dataset(dataset_name, split="test")
+    dataset_test = load_dataset(dataset_name, split="valid2")
 
     wer = load_metric("wer")
 
@@ -161,7 +161,7 @@ def optimize(lm_dir, wav2vec_model_path, dataset_name):
     dataset_test = dataset_test.map(speech_file_to_array_fn)
     dataset_test = dataset_test.map(prepare_dataset, batch_size=8, num_proc=4)
 
-    max_input_length_in_sec = 30.0
+    max_input_length_in_sec = 80.0
     dataset_test = dataset_test.filter(lambda x: x < max_input_length_in_sec * processor.feature_extractor.sampling_rate, input_columns=["input_length"])
     dataset_test = dataset_test.remove_columns(["sampling_rate", "input_values", "input_length"])
 
@@ -169,7 +169,7 @@ def optimize(lm_dir, wav2vec_model_path, dataset_name):
 
     print ("Beginning alpha and beta hyperparameter optimization")
     study = optuna.create_study()
-    study.optimize(optimize_lm_objective, n_jobs=1, n_trials=30)
+    study.optimize(optimize_lm_objective, n_jobs=2, n_trials=30)
 
     #
     lm_best = {'alpha':study.best_params['lm_alpha'], 'beta':study.best_params['lm_beta']}

@@ -8,3 +8,5 @@ train/homedir
 *.csv
 *.zip
 train/python/vocab-full.txt
+train/python/core
+train/python/log_*
