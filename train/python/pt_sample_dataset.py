@@ -126,7 +126,7 @@ class PTBRDataset(datasets.GeneratorBasedBuilder):
             datasets.SplitGenerator(
                 name="audiotext",
                 gen_kwargs={
-                    "filepath": os.path.join(abs_path_to_data, "cv-valid-test-audiotext.csv"),
+                    "filepath": os.path.join(abs_path_to_data, "audiotext.csv"),
                     "path_to_clips": abs_path_to_clips,
                 },
             ),

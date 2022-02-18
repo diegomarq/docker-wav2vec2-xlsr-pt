@@ -88,7 +88,7 @@ def main(wav2vec2_model_path, revision, **args):
     processor, model, vocab, ctcdecoder, kenlm_ctcdecoder = models.create(wav2vec2_model_path, revision)
 
     #
-    dataset_test = load_dataset("pt_sample_dataset.py", split="azure_audiotext")
+    dataset_test = load_dataset("pt_sample_dataset.py", split="audiotext")
 
     wer = load_metric("wer")
 
